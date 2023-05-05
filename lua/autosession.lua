@@ -69,7 +69,6 @@ local setup_autocmds = function(session_file)
 end
 
 ---@param session_file? string
----@return nil | string
 M.session_load = function(session_file, force)
     session_file = session_file or get_session_file()
     if fn.filereadable(session_file) == 0
@@ -87,7 +86,6 @@ end
 
 ---@param session_file? string
 ---@param force? boolean
----@return boolean | string?
 M.session_start = function(session_file, force)
     session_file = session_file or get_session_file()
 
@@ -103,7 +101,6 @@ M.session_start = function(session_file, force)
     notify('Tracking session in `' .. session_file .. '`')
 end
 
----@return nil | string
 M.session_stop = function()
     api.nvim_clear_autocmds({ group = augroup })
     local session_file = v.this_session
