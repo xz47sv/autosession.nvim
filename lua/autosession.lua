@@ -141,26 +141,25 @@ M.setup = function(auto_load)
     )
 
     -- default to true
-    if auto_load == nil or auto_load
-    then
-        api.nvim_create_autocmd(
-            'VimEnter',
-            {
-                callback = function()
-                    local session_file = get_session_file()
-                    if fn.filereadable(session_file) ~= 0
-                    then
-                        M.session_load(session_file)
-                    elseif fn.argc() == 0
-                    then
-                        M.session_start()
-                    end
-                end,
-                group = augroup,
-                nested = true,
-            }
-        )
-    end
+    if not auto_load and auto_load ~= nil then return end
+
+    api.nvim_create_autocmd(
+        'VimEnter',
+        {
+            callback = function()
+                local session_file = get_session_file()
+                if fn.filereadable(session_file) ~= 0
+                then
+                    M.session_load(session_file)
+                elseif fn.argc() == 0
+                then
+                    M.session_start()
+                end
+            end,
+            group = augroup,
+            nested = true,
+        }
+    )
 end
 
 return M
