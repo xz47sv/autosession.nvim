@@ -116,38 +116,49 @@ M.session_stop = function()
     notify('Deleted session `' .. session_file .. '`')
 end
 
----@param auto_load? boolean
-M.setup = function(auto_load)
-    api.nvim_create_user_command(
-        'SessionLoad',
-        function(opts) M.session_load(opts.fargs[1], opts.bang) end,
-        {
-            bang = true,
-            bar = true,
-            complete = 'file',
-            desc = 'Load session from a file',
-            nargs = '?',
-        }
-    )
-    api.nvim_create_user_command(
-        'SessionStart',
-        function(opts) M.session_start(opts.fargs[1], opts.bang) end,
-        {
-            bang = true,
-            bar = true,
-            complete = 'file',
-            desc = 'Start tracking session',
-            nargs = '?',
-        }
-    )
-    api.nvim_create_user_command(
-        'SessionStop',
-        M.session_stop,
-        { bar = true, desc = 'Stop tracking session', nargs = 0 }
-    )
+---@class Config
+---@field auto_load boolean
+---@field create_user_commands boolean
+local default_config = { auto_load = true, create_user_commands = true }
+
+---@param config? Config
+M.setup = function(config)
+    ---@type Config
+    config = vim.tbl_extend('force', default_config, config or {})
+
+    if config.create_user_commands
+    then
+        api.nvim_create_user_command(
+            'SessionLoad',
+            function(opts) M.session_load(opts.fargs[1], opts.bang) end,
+            {
+                bang = true,
+                bar = true,
+                complete = 'file',
+                desc = 'Load session from a file',
+                nargs = '?',
+            }
+        )
+        api.nvim_create_user_command(
+            'SessionStart',
+            function(opts) M.session_start(opts.fargs[1], opts.bang) end,
+            {
+                bang = true,
+                bar = true,
+                complete = 'file',
+                desc = 'Start tracking session',
+                nargs = '?',
+            }
+        )
+        api.nvim_create_user_command(
+            'SessionStop',
+            M.session_stop,
+            { bar = true, desc = 'Stop tracking session', nargs = 0 }
+        )
+    end
 
     -- default to true
-    if not auto_load and auto_load ~= nil then return end
+    if not config.auto_load then return end
 
     api.nvim_create_autocmd(
         'VimEnter',
