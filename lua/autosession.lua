@@ -32,7 +32,14 @@ local api = vim.api
 local fn = vim.fn
 local v = vim.v
 
-local augroup
+local _augroup
+
+---@return integer
+---@private
+local augroup = function()
+    _augroup = _augroup or api.nvim_create_augroup('autosession.nvim', {})
+    return _augroup
+end
 
 ---@param msg string
 ---@param level? integer
@@ -64,7 +71,7 @@ end
 local setup_autocmds = function(session_file)
     api.nvim_create_autocmd(
         { 'BufEnter', 'VimLeavePre' },
-        { callback = function() mksession(session_file) end, group = augroup }
+        { callback = function() mksession(session_file) end, group = augroup() }
     )
 end
 
@@ -102,7 +109,7 @@ M.session_start = function(session_file, force)
 end
 
 M.session_stop = function()
-    api.nvim_clear_autocmds({ group = augroup })
+    api.nvim_clear_autocmds({ group = augroup() })
     local session_file = v.this_session
     os.remove(session_file)
     v.this_session = ''
@@ -111,7 +118,6 @@ end
 
 ---@param auto_load? boolean
 M.setup = function(auto_load)
-    augroup = api.nvim_create_augroup('autosession.nvim', { clear = true })
     api.nvim_create_user_command(
         'SessionLoad',
         function(opts) M.session_load(opts.fargs[1], opts.bang) end,
@@ -156,7 +162,7 @@ M.setup = function(auto_load)
                     M.session_start()
                 end
             end,
-            group = augroup,
+            group = augroup(),
             nested = true,
         }
     )
