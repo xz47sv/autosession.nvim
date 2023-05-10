@@ -29,6 +29,7 @@
 local M = {}
 
 local api = vim.api
+local cmd = vim.cmd
 local fn = vim.fn
 local v = vim.v
 
@@ -37,7 +38,8 @@ local _augroup
 ---@return integer
 ---@private
 local augroup = function()
-    _augroup = _augroup or api.nvim_create_augroup('autosession.nvim', {})
+    _augroup = _augroup
+        or api.nvim_create_augroup('autosession.nvim', { clear = true })
     return _augroup
 end
 
@@ -60,10 +62,19 @@ local get_session_file = function()
     )
 end
 
+---@param file string
+---@return string
+---@private
+local get_view_file = function(file)
+    return string.format(
+        '%s/sessions/view/%s.vim', fn.stdpath('data'), file:gsub('/', '%%')
+    )
+end
+
 ---@param session_file string
 ---@private
 local mksession = function(session_file)
-    vim.cmd.mksession({ args = { fn.fnameescape(session_file) }, bang = true })
+    cmd.mksession({ args = { fn.fnameescape(session_file) }, bang = true })
 end
 
 ---@param session_file string
@@ -87,7 +98,7 @@ M.session_load = function(session_file, force)
         err('Session already loaded `' .. session_file .. '`')
         return
     end
-    vim.cmd.source(fn.fnameescape(session_file))
+    cmd.source(fn.fnameescape(session_file))
     setup_autocmds(session_file)
 end
 
@@ -119,12 +130,19 @@ end
 ---@class Config
 ---@field auto_load boolean
 ---@field create_user_commands boolean
-local default_config = { auto_load = true, create_user_commands = true }
+---@field mkview boolean
+local default_config = {
+    auto_load = true,
+    create_user_commands = true,
+    mkview = true,
+}
 
 ---@param config? Config
 M.setup = function(config)
     ---@type Config
     config = vim.tbl_extend('force', default_config, config or {})
+
+    fn.mkdir(fn.stdpath('data') .. '/sessions/view', 'p')
 
     if config.create_user_commands
     then
@@ -157,26 +175,58 @@ M.setup = function(config)
         )
     end
 
-    -- default to true
-    if not config.auto_load then return end
+    if config.auto_load and fn.argc() == 0
+    then
+        api.nvim_create_autocmd(
+            'VimEnter',
+            {
+                callback = function()
+                    local session_file = get_session_file()
+                    if fn.filereadable(session_file) ~= 0
+                    then
+                        M.session_load(session_file)
+                    else
+                        M.session_start()
+                    end
+                end,
+                group = augroup(),
+                nested = true,
+            }
+        )
+    end
 
-    api.nvim_create_autocmd(
-        'VimEnter',
-        {
-            callback = function()
-                local session_file = get_session_file()
-                if fn.filereadable(session_file) ~= 0
-                then
-                    M.session_load(session_file)
-                elseif fn.argc() == 0
-                then
-                    M.session_start()
-                end
-            end,
-            group = augroup(),
-            nested = true,
-        }
-    )
+    if config.mkview
+    then
+        api.nvim_create_autocmd(
+            'BufWinEnter',
+            {
+                callback = function(opts)
+                    pcall(cmd.source, fn.fnameescape(get_view_file(opts.file)))
+                end,
+                group = augroup(),
+                pattern = '?*',
+            }
+        )
+
+        api.nvim_create_autocmd(
+            { 'BufWinLeave', 'VimLeavePre' },
+            {
+                callback = function(opts)
+                    local viewopts = vim.go.viewoptions
+                    cmd.set('viewoptions=cursor,folds')
+                    cmd.mkview(
+                        {
+                            args = { fn.fnameescape(get_view_file(opts.file)) },
+                            bang = true,
+                        }
+                    )
+                    vim.go.viewoptions = viewopts
+                end,
+                group = augroup(),
+                pattern = '?*',
+            }
+        )
+    end
 end
 
 return M
