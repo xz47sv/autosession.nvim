@@ -130,11 +130,11 @@ end
 ---@class Config
 ---@field auto_load boolean
 ---@field create_user_commands boolean
----@field mkview boolean
+---@field mkview boolean | fun(bufnr: integer): boolean
 local default_config = {
     auto_load = true,
     create_user_commands = true,
-    mkview = true,
+    mkview = function(bufnr) return vim.bo[bufnr].filetype ~= 'help' end,
 }
 
 ---@param config? Config
@@ -201,6 +201,11 @@ M.setup = function(config)
             'BufWinEnter',
             {
                 callback = function(opts)
+                    if type(config.mkview) == 'function'
+                        and not config.mkview(opts.buf)
+                    then
+                        return
+                    end
                     pcall(cmd.source, fn.fnameescape(get_view_file(opts.file)))
                 end,
                 group = augroup(),
