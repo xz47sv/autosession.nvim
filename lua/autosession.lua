@@ -54,11 +54,13 @@ end
 ---@private
 local err = function(msg) notify(msg, vim.log.levels.ERROR) end
 
+local _session_dir = fn.stdpath('state') .. '/sessions'
+
 ---@return string
 ---@private
 local get_session_file = function()
     return string.format(
-        '%s/sessions/%s.vim', fn.stdpath('data'), fn.getcwd():gsub('/', '%%')
+        '%s/%s.vim', _session_dir, fn.getcwd():gsub('/', '%%')
     )
 end
 
@@ -66,9 +68,7 @@ end
 ---@return string
 ---@private
 local get_view_file = function(file)
-    return string.format(
-        '%s/sessions/view/%s.vim', fn.stdpath('data'), file:gsub('/', '%%')
-    )
+    return string.format('%s/view/%s.vim', _session_dir, file:gsub('/', '%%'))
 end
 
 ---@param session_file string
@@ -135,14 +135,16 @@ local default_config = {
     auto_load = true,
     create_user_commands = true,
     mkview = function(bufnr) return vim.bo[bufnr].filetype ~= 'help' end,
+    session_dir = _session_dir,
 }
 
 ---@param config? Config
 M.setup = function(config)
     ---@type Config
     config = vim.tbl_extend('force', default_config, config or {})
+    _session_dir = config.session_dir
 
-    fn.mkdir(fn.stdpath('data') .. '/sessions/view', 'p')
+    fn.mkdir(config.session_dir, 'p')
 
     if config.create_user_commands
     then
@@ -197,6 +199,7 @@ M.setup = function(config)
 
     if config.mkview
     then
+        fn.mkdir(config.session_dir .. '/view', 'p')
         api.nvim_create_autocmd(
             'BufWinEnter',
             {
