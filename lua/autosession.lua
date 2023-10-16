@@ -134,7 +134,9 @@ end
 local default_config = {
     auto_load = true,
     create_user_commands = true,
-    mkview = function(bufnr) return vim.bo[bufnr].filetype ~= 'help' end,
+    mkview = function(bufnr)
+        return not vim.tbl_contains({ 'help', 'man' }, vim.bo[bufnr].filetype)
+    end,
     session_dir = _session_dir,
 }
 
