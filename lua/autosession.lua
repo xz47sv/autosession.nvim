@@ -1,9 +1,9 @@
--- SPDX-FileCopyrightText: 2023 reggie <contact<at>reggie<dot>re>
+-- SPDX-FileCopyrightText: 2024 Ash <contact@ash.fail>
 -- SPDX-License-Identifier: MIT
 
 -- MIT License
 
---  Copyright (c) 2023 reggie contact<at>reggie<dot>re
+--  Copyright (c) 2024 Ash contact@ash.fail
 
 -- Permission is hereby granted, free of charge, to any person obtaining a copy
 -- of this software and associated documentation files (the "Software"), to
@@ -33,15 +33,8 @@ local cmd = vim.cmd
 local fn = vim.fn
 local v = vim.v
 
-local _augroup
-
----@return integer
----@private
-local augroup = function()
-    _augroup = _augroup
-        or api.nvim_create_augroup('autosession.nvim', { clear = true })
-    return _augroup
-end
+local AUGROUP = nil
+local SESSION_DIR = nil
 
 ---@param msg string
 ---@param level? integer
@@ -50,17 +43,12 @@ local notify = function(msg, level)
     vim.notify('autosession.nvim: ' .. msg, level)
 end
 
----@param msg string
----@private
-local err = function(msg) notify(msg, vim.log.levels.ERROR) end
-
-local _session_dir = fn.stdpath('state') .. '/sessions'
-
 ---@return string
 ---@private
 local get_session_file = function()
+    assert(SESSION_DIR)
     return string.format(
-        '%s/%s.vim', _session_dir, fn.getcwd():gsub('/', '%%')
+        '%s/%s.vim', SESSION_DIR, fn.getcwd():gsub('/', '%%')
     )
 end
 
@@ -68,7 +56,8 @@ end
 ---@return string
 ---@private
 local get_view_file = function(file)
-    return string.format('%s/view/%s.vim', _session_dir, file:gsub('/', '%%'))
+    assert(SESSION_DIR)
+    return string.format('%s/view/%s.vim', SESSION_DIR, file:gsub('/', '%%'))
 end
 
 ---@param session_file string
@@ -82,7 +71,7 @@ end
 local setup_autocmds = function(session_file)
     api.nvim_create_autocmd(
         { 'BufEnter', 'VimLeavePre' },
-        { callback = function() mksession(session_file) end, group = augroup() }
+        { callback = function() mksession(session_file) end, group = AUGROUP }
     )
 end
 
@@ -91,11 +80,17 @@ M.session_load = function(session_file, force)
     session_file = session_file or get_session_file()
     if fn.filereadable(session_file) == 0
     then
-        err('Cannot load session, file not readable `' .. session_file .. '`')
+        notify(
+            'Cannot load session, file not readable `' .. session_file .. '`',
+            vim.log.levels.ERROR
+        )
         return
     elseif not force and v.this_session == session_file
     then
-        err('Session already loaded `' .. session_file .. '`')
+        notify(
+            'Session already loaded `' .. session_file .. '`',
+            vim.log.levels.ERROR
+        )
         return
     end
     cmd.source(fn.fnameescape(session_file))
@@ -109,7 +104,10 @@ M.session_start = function(session_file, force)
 
     if v.this_session == session_file and not force
     then
-        err('Already tracking session in `' .. session_file .. '`')
+        notify(
+            'Already tracking session in `' .. session_file .. '`',
+            vim.log.levels.ERROR
+        )
         return
     end
 
@@ -120,7 +118,7 @@ M.session_start = function(session_file, force)
 end
 
 M.session_stop = function()
-    api.nvim_clear_autocmds({ group = augroup() })
+    api.nvim_clear_autocmds({ group = AUGROUP })
     local session_file = v.this_session
     os.remove(session_file)
     v.this_session = ''
@@ -131,20 +129,30 @@ end
 ---@field auto_load boolean
 ---@field create_user_commands boolean
 ---@field mkview boolean | fun(bufnr: integer): boolean
+---@field session_dir string
 local default_config = {
     auto_load = true,
     create_user_commands = true,
     mkview = function(bufnr)
         return not vim.tbl_contains({ 'help', 'man' }, vim.bo[bufnr].filetype)
     end,
-    session_dir = _session_dir,
+    session_dir = fn.stdpath('state') .. '/sessions',
 }
 
 ---@param config? Config
 M.setup = function(config)
     ---@type Config
     config = vim.tbl_extend('force', default_config, config or {})
-    _session_dir = config.session_dir
+
+    vim.validate({
+        auto_load = { config.auto_load, 'boolean' },
+        create_user_commands = { config.create_user_commands, 'boolean' },
+        mkview = { config.mkview, { 'boolean', 'function' } },
+        session_dir = { config.session_dir, 'string' }
+    })
+
+    AUGROUP = api.nvim_create_augroup('autosession.nvim', { clear = true })
+    SESSION_DIR = config.session_dir
 
     fn.mkdir(config.session_dir, 'p')
 
@@ -193,7 +201,7 @@ M.setup = function(config)
                         M.session_start()
                     end
                 end,
-                group = augroup(),
+                group = AUGROUP,
                 nested = true,
             }
         )
@@ -213,7 +221,7 @@ M.setup = function(config)
                     end
                     pcall(cmd.source, fn.fnameescape(get_view_file(opts.file)))
                 end,
-                group = augroup(),
+                group = AUGROUP,
                 pattern = '?*',
             }
         )
@@ -224,15 +232,13 @@ M.setup = function(config)
                 callback = function(opts)
                     local viewopts = vim.go.viewoptions
                     cmd.set('viewoptions=cursor,folds')
-                    cmd.mkview(
-                        {
-                            args = { fn.fnameescape(get_view_file(opts.file)) },
-                            bang = true,
-                        }
-                    )
+                    cmd.mkview({
+                        args = { fn.fnameescape(get_view_file(opts.file)) },
+                        bang = true,
+                    })
                     vim.go.viewoptions = viewopts
                 end,
-                group = augroup(),
+                group = AUGROUP,
                 pattern = '?*',
             }
         )
