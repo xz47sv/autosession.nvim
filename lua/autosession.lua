@@ -63,7 +63,10 @@ end
 ---@param session_file string
 ---@private
 local mksession = function(session_file)
-    cmd.mksession({ args = { fn.fnameescape(session_file) }, bang = true })
+    if fn.getcmdwintype() ~= ':'
+    then
+        cmd.mksession({ args = { fn.fnameescape(session_file) }, bang = true })
+    end
 end
 
 ---@param session_file string
@@ -148,7 +151,7 @@ M.setup = function(config)
         auto_load = { config.auto_load, 'boolean' },
         create_user_commands = { config.create_user_commands, 'boolean' },
         mkview = { config.mkview, { 'boolean', 'function' } },
-        session_dir = { config.session_dir, 'string' }
+        session_dir = { config.session_dir, 'string' },
     })
 
     AUGROUP = api.nvim_create_augroup('autosession.nvim', { clear = true })
