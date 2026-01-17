@@ -145,7 +145,6 @@ local mksession = function(session_file)
     end
 end
 
----@param session_file string
 ---@private
 local setup_autocmds = function()
     api.nvim_create_autocmd(
@@ -154,7 +153,7 @@ local setup_autocmds = function()
             callback = function()
                 mksession(get_session_file())
             end,
-            group = AUGROUP
+            group = AUGROUP,
         }
     )
 end
@@ -228,7 +227,9 @@ local default_config = {
 ---@param config? autosession-nvim.Config
 M.setup = function(config)
     ---@type autosession-nvim.Config
-    config = vim.tbl_extend('force', default_config, config or {})
+    config = vim.tbl_extend(
+        'force', default_config, vim.g.autosession_config or {}, config or {}
+    )
 
     vim.validate({
         auto_load = { config.auto_load, 'boolean' },
@@ -329,6 +330,8 @@ M.setup = function(config)
             }
         )
     end
+
+    vim.g.loaded_autosession = true
 end
 
 return M
