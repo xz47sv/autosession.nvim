@@ -1,9 +1,9 @@
--- SPDX-FileCopyrightText: 2024 Ash <contact@ash.fail>
+-- SPDX-FileCopyrightText: 2024-2025 Ash <contact@ash.fail>
 -- SPDX-License-Identifier: MIT
 
 -- MIT License
 
---  Copyright (c) 2024 Ash contact@ash.fail
+--  Copyright (c) 2024-2025 Ash contact@ash.fail
 
 -- Permission is hereby granted, free of charge, to any person obtaining a copy
 -- of this software and associated documentation files (the "Software"), to
@@ -24,7 +24,79 @@
 -- FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 -- IN THE SOFTWARE.
 
--- TODO: docs
+--- Create and manage sessions.
+---
+---@tag autosession.nvim AutosessionNvim
+
+---@toc
+
+---@mod usage
+
+--- Autosession.nvim is used to automatically manage session based on the
+--- current directory.
+---
+--- To load the plugin with default options you can either set
+--- `g:autosession_autoload`, or use *autosession-nvim.setup*. If you want to
+--- adjust the configuration either set the `g:autosession_config` or pass your
+--- options to the setup function.
+---
+--- To use the defaults:
+--- ```lua
+--- require('autosession').setup()
+--- ```
+---
+--- or:
+--- ```vim
+--- let g:autosession_autoload = 1
+--- ```
+---
+--- To pass in a config:
+--- ```lua
+--- require('autosession').setup({
+---     auto_load = true,
+---     create_user_commands = true,
+---     mkview = function(bufnr)
+---         return not vim.tbl_contains({ 'help', 'man' }, vim.bo[bufnr].filetype)
+---     end,
+---     session_dir = fn.stdpath('state') .. '/sessions',
+--- })
+--- ```
+---
+--- or:
+--- ```vim
+--- let g:autosession_config = {
+---     ; config here
+--- }
+--- ```
+---
+--- By default a session will be loaded (or created if it doesn't exist) when
+--- Neovim is invoked with no cli arguments. That means opening a specific file
+--- will not load or create a session (although this can be done manually), but
+--- just using `nvim` will create or load a session for the current working
+--- directory.
+---
+--- That's it, just run set the variable or run the setup. And if you open
+--- Neovim someplace it will restore your previous windows and buffers.
+---@see M.Config for configuration options
+--- M-user-commands for commands to manually manage sessions
+--- M-lua for how to call the lua API
+
+---@mod user-commands
+
+---@signature :SessionLoad :SessionLoad[!] [FILE]
+---@text Load a session from a specified file. If no session file is specified,
+--- the default file for the current directory is used. If `!` is applied, the
+--- session will be loaded forcefully even if a session of the same name is
+--- already in use.
+
+---@signature :SessionStart :SessionStart[!] [FILE]
+---@text Start a new session and store it into a specified FILE. If no session
+--- file is specified, the default file for the current directory is used. If
+--- `!` is applied, the session will be created and overwritten even if the
+--- file is already in use.
+
+---@signature :SessionStop :SessionStop
+---@text Stops the current session, deleting the backing file.
 
 local M = {}
 
@@ -46,6 +118,10 @@ end
 ---@return string
 ---@private
 local get_session_file = function()
+    if v.this_session ~= '' then
+        return v.this_session
+    end
+
     assert(SESSION_DIR)
     return string.format(
         '%s/%s.vim', SESSION_DIR, fn.getcwd():gsub('/', '%%')
@@ -71,12 +147,19 @@ end
 
 ---@param session_file string
 ---@private
-local setup_autocmds = function(session_file)
+local setup_autocmds = function()
     api.nvim_create_autocmd(
         { 'BufEnter', 'VimLeavePre' },
-        { callback = function() mksession(session_file) end, group = AUGROUP }
+        {
+            callback = function()
+                mksession(get_session_file())
+            end,
+            group = AUGROUP
+        }
     )
 end
+
+---@mod lua lua api
 
 ---@param session_file? string
 M.session_load = function(session_file, force)
@@ -97,7 +180,7 @@ M.session_load = function(session_file, force)
         return
     end
     cmd.source(fn.fnameescape(session_file))
-    setup_autocmds(session_file)
+    setup_autocmds()
 end
 
 ---@param session_file? string
@@ -115,7 +198,7 @@ M.session_start = function(session_file, force)
     end
 
     mksession(session_file)
-    setup_autocmds(session_file)
+    setup_autocmds()
     v.this_session = session_file
     notify('Tracking session in `' .. session_file .. '`')
 end
@@ -128,7 +211,7 @@ M.session_stop = function()
     notify('Deleted session `' .. session_file .. '`')
 end
 
----@class Config
+---@class autosession-nvim.Config
 ---@field auto_load boolean
 ---@field create_user_commands boolean
 ---@field mkview boolean | fun(bufnr: integer): boolean
@@ -142,9 +225,9 @@ local default_config = {
     session_dir = fn.stdpath('state') .. '/sessions',
 }
 
----@param config? Config
+---@param config? autosession-nvim.Config
 M.setup = function(config)
-    ---@type Config
+    ---@type autosession-nvim.Config
     config = vim.tbl_extend('force', default_config, config or {})
 
     vim.validate({
