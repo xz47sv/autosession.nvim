@@ -1,0 +1,125 @@
+*autosession-nvim.txt*
+
+Create and manage sessions.
+
+
+                                              *autosession.nvim* *AutosessionNvim*
+
+  USAGE...............................................|autosession-nvim-usage|
+  USER COMMANDS...............................|autosession-nvim-user-commands|
+  :SessionLoad[!]...............................................|:SessionLoad|
+  :SessionStart[!].............................................|:SessionStart|
+  :SessionStop..................................................|:SessionStop|
+  LUA API...............................................|autosession-nvim-lua|
+  session_load.................................|autosession-nvim.session_load|
+  session_start...............................|autosession-nvim.session_start|
+  Config.............................................|autosession-nvim.Config|
+  setup...............................................|autosession-nvim.setup|
+
+==============================================================================
+USAGE                                                   *autosession-nvim-usage*
+
+Autosession.nvim is used to automatically manage session based on the current
+directory.
+
+To load the plugin with default options you can either set
+`g:autosession_autoload`, or use *autosession-nvim.setup*. If you want to
+adjust the configuration either set the `g:autosession_config` or pass your
+options to the setup function.
+
+To use the defaults:
+>lua
+require('autosession').setup()
+<
+or:
+>vim
+let g:autosession_autoload = 1
+<
+To pass in a config:
+>lua
+require('autosession').setup({
+    auto_load = true,
+    create_user_commands = true,
+    mkview = function(bufnr)
+        return not vim.tbl_contains({ 'help', 'man' }, vim.bo[bufnr].filetype)
+    end,
+    session_dir = fn.stdpath('state') .. '/sessions',
+})
+<
+or:
+>vim
+let g:autosession_config = {
+    ; config here
+}
+<
+By default a session will be loaded (or created if it doesn't exist) when
+Neovim is invoked with no cli arguments. That means opening a specific file
+will not load or create a session (although this can be done manually), but
+just using `nvim` will create or load a session for the current working
+directory.
+
+That's it, just run set the variable or run the setup. And if you open Neovim
+someplace it will restore your previous windows and buffers.
+
+See: ~
+    • |autosession-nvim.Config| for configuration options
+    • |autosession-nvim-user-commands| for commands to manually manage sessions
+    • |autosession-nvim-lua| for how to call the lua API
+
+==============================================================================
+USER COMMANDS                                   *autosession-nvim-user-commands*
+
+------------------------------------------------------------------------------
+:SessionLoad[!] [FILE]                                            *:SessionLoad*
+
+Load a session from a specified file. If no session file is specified, the
+default file for the current directory is used. If `!` is applied, the
+session will be loaded forcefully even if a session of the same name is
+already in use.
+
+------------------------------------------------------------------------------
+:SessionStart[!] [FILE]                                          *:SessionStart*
+
+Start a new session and store it into a specified FILE. If no session file is
+specified, the default file for the current directory is used. If `!` is
+applied, the session will be created and overwritten even if the file is
+already in use.
+
+------------------------------------------------------------------------------
+:SessionStop                                                      *:SessionStop*
+
+Stops the current session, deleting the backing file.
+
+==============================================================================
+LUA API                                                   *autosession-nvim-lua*
+
+------------------------------------------------------------------------------
+session_load({session_file}, {force})            *autosession-nvim.session_load*
+
+Parameters: ~
+    • {session_file} `(optional)` `(string)`
+
+------------------------------------------------------------------------------
+                                                *autosession-nvim.session_start*
+session_start({session_file}, {force})
+
+Parameters: ~
+    • {session_file} `(optional)` `(string)`
+    • {force} `(optional)` `(boolean)`
+
+------------------------------------------------------------------------------
+Config                                                 *autosession-nvim.Config*
+
+Fields: ~
+    • {auto_load} `(boolean)`
+    • {create_user_commands} `(boolean)`
+    • {mkview} `(boolean)` | fun(bufnr: integer): boolean
+    • {session_dir} `(string)`
+
+------------------------------------------------------------------------------
+setup({config})                                         *autosession-nvim.setup*
+
+Parameters: ~
+    • {config} `(optional)` `(autosession-nvim.Config)`
+
+ vim:tw=78:ts=8:noet:ft=help:norl:
